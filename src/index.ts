@@ -2,6 +2,7 @@
 
 import { WebClient, WebAPICallResult } from "@slack/client"
 import moment from "moment"
+import { CronJob } from "cron"
 
 interface ChannelsListResult extends WebAPICallResult {
   channels: Channel[]
@@ -29,31 +30,41 @@ type ChannelInfo = {
   count: number
 }
 
-async function main() {
-  const client = apiFactory()
+function main() {
+  const job = new CronJob("10 0 0 * * *", postRanking, undefined, true, "Asia/Tokyo")
+  job.start()
+}
+
+async function postRanking() {
+  const api = apiFactory()
+
+  Promise.all(await fetchChannelInfos(await fetchChannels())).then(channelInfos => {
+    api.chat.postMessage({
+      channel: process.env.POST_CHANNEL || "",
+      text: channelInfosToRanking(channelInfos),
+      username: "ranking-bot",
+      icon_url: process.env.ICON_URL
+    })
+  })
+}
+
+function channelInfosToRanking(channelInfos: ChannelInfo[]) {
   const date = moment()
     .utcOffset("+09:00")
     .hour(0)
     .minute(0)
     .second(0)
 
-  Promise.all(await fetchChannelInfos(await fetchChannels())).then(channelInfos => {
-    const message = channelInfos
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
-      .map(ch => `- <#${ch.id}> (${ch.count})`)
-      .join("\n")
-
-    const postChannel = process.env.POST_CHANNEL || ""
-    client.chat.postMessage({
-      channel: postChannel,
-      text: `== ${date.subtract(1, "days").format("YYYY-MM-DD")} の発言数ランキング ==\n${message}`
-    })
-  })
+  const message = channelInfos
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+    .map(ch => `- <#${ch.id}> (${ch.count})`)
+    .join("\n")
+  return `== ${date.subtract(1, "days").format("YYYY-MM-DD")} の発言数ランキング ==\n${message}`
 }
 
 async function fetchChannelInfos(channels: Channel[]) {
-  const client = apiFactory()
+  const api = apiFactory()
   const latest = moment()
     .utcOffset("+09:00")
     .hour(0)
@@ -63,7 +74,7 @@ async function fetchChannelInfos(channels: Channel[]) {
 
   return channels.map(
     async (channel): Promise<ChannelInfo> => {
-      const res = (await client.channels.history({
+      const res = (await api.channels.history({
         channel: channel.id,
         latest: latest.unix().toString(),
         oldest: oldest.unix().toString(),
@@ -80,8 +91,8 @@ async function fetchChannelInfos(channels: Channel[]) {
 }
 
 async function fetchChannels(): Promise<Channel[]> {
-  const client = apiFactory()
-  const res = (await client.channels.list({ exclude_archived: true, exclude_members: true })) as ChannelsListResult
+  const api = apiFactory()
+  const res = (await api.channels.list({ exclude_archived: true, exclude_members: true })) as ChannelsListResult
   return res.channels.map((channel: Channel) => ({ id: channel.id, name: channel.name }))
 }
 
