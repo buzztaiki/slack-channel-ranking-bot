@@ -1,0 +1,25 @@
+{
+  "name": "channel-ranking-bot",
+  "version": "0.0.0",
+  "private": true,
+  "author": "yuki_yano <yuki.ycino@gmail.com>",
+  "description": "チャンネル毎の発言数を集計するBOT",
+  "scripts": {
+    "build": "tsc --project .",
+    "watch": "tsc --project . -w",
+    "lint": "tslint --project .",
+    "fix": "tslint --fix --project ."
+  },
+  "dependencies": {
+    "@slack/client": "^4.8.0",
+    "moment": "^2.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^10.12.18",
+    "prettier": "^1.15.3",
+    "tslint": "^5.12.1",
+    "tslint-config-prettier": "^1.17.0",
+    "tslint-plugin-prettier": "^2.0.1",
+    "typescript": "^3.2.4"
+  }
+}
